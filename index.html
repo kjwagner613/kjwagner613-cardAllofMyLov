@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Music Card</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="./assets/KWJS.ico" />
+</head>
+
+<body>
+  <div class="page-shell">
+    <div class="page-orb page-orb-left"></div>
+    <div class="page-orb page-orb-right"></div>
+
+    <main class="player-container">
+      <section class="card-hero">
+        <p class="eyebrow">Audio Card</p>
+        <h1 id="card-title">Music Card</h1>
+        <p class="card-subtitle" id="card-subtitle">A small player for sending a song.</p>
+      </section>
+
+      <div class="photo-panel" aria-label="Photo album">
+        <div class="photo-panel-header">
+          <span>Photo Album</span>
+          <span id="photo-count">0 items</span>
+        </div>
+
+        <figure class="photo-stage" id="photo-stage">
+          <img id="album-photo" src="" alt="Photo album image" loading="lazy" />
+          <video id="album-video" controls playsinline preload="metadata"></video>
+          <figcaption id="album-caption">Add photos or videos in card-data.js to start your slideshow.</figcaption>
+        </figure>
+
+        <div class="photo-controls" aria-label="Photo controls">
+          <button type="button" class="transport-btn" id="photo-prev" aria-label="Previous photo or video">Prev Item</button>
+          <button type="button" class="transport-btn transport-btn-primary" id="photo-toggle" aria-label="Start or stop slideshow">Start Slideshow</button>
+          <button type="button" class="transport-btn" id="photo-next" aria-label="Next photo or video">Next Item</button>
+        </div>
+
+        <div class="photo-links">
+          <a id="photo-open" href="#" target="_blank" rel="noopener noreferrer">Open on iPhone</a>
+          <a id="photo-download" href="#" target="_blank" rel="noopener noreferrer" download>Download Item</a>
+        </div>
+      </div>
+
+      <section class="player-main">
+        <div class="player-frame">
+          <div class="player-stage">
+            <div class="lcd-display" id="lcdDisplay">
+              <span id="status">Paused</span><br />
+              <span id="current-song">No song playing</span><br />
+              <span class="playlist-label">Playlist</span>
+              <span id="playlist">Local</span>
+            </div>
+
+            <div class="transport-controls" aria-label="Player controls">
+              <button type="button" class="transport-btn" data-action="prev" aria-label="Previous song">Prev</button>
+              <button type="button" class="transport-btn transport-btn-primary" data-action="play"
+                aria-label="Play current song">Play</button>
+              <button type="button" class="transport-btn" data-action="pause" aria-label="Pause current song">Pause</button>
+              <button type="button" class="transport-btn" data-action="next" aria-label="Next song">Next</button>
+            </div>
+
+            <audio id="audioPlayer" controls></audio>
+
+            <div id="soundcloud-container" style="display: none; text-align: center;">
+              <iframe id="soundcloud-widget" width="100%" height="166" scrolling="no" frameborder="no"
+                allow="autoplay" src=""></iframe>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card-copy">
+        <div class="card-note">
+          <p id="card-note">
+            I love you!!
+          </p>
+          <p class="card-signoff">
+            From: <span id="card-sender">Kevin</span><span style="margin-left: 50px;"> To: </span> <span id="card-recipient"></span>
+          </p>
+        </div>
+
+        <div class="card-actions">
+          <a href="songlist.html" id="songList">Edit Song List</a>
+          <label class="playlist-picker" for="playlist-selector">
+            <span>Source</span>
+            <select id="playlist-selector">
+              <option value="songs" selected>Local</option>
+              <option value="joanneCloud">Joanne's SoundCloud</option>
+              <option value="kevinCloud">Kevin's SoundCloud</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="player-aside">
+          <div class="player-aside-copy">
+            <p class="player-aside-label">Now Playing</p>
+            <div id="sender-aside" class="player-aside-text" hidden></div>
+          </div>
+          <div class="medallion-row" aria-label="Signature medallions">
+            <img class="herMedallion" src="assets/jsMedallion.png" alt="JS medallion" />
+            <img class="medallion" src="assets/KW-2026Medallion-1.png" alt="KW and JS medallion" />
+          </div>
+        </div>
+      </section>
+
+      <div class="track-panel">
+        <div class="track-panel-header">
+          <span>Tracks</span>
+          <span id="track-count">0 songs</span>
+        </div>
+        <div id="track-list" class="track-list"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://w.soundcloud.com/player/api.js"></script>
+  <script src="card-data.js?v=20260414b"></script>
+  <script src="script.js?v=20260414"></script>
+</body>
+
+</html>
