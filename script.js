@@ -25,9 +25,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const photoPrevButton = document.getElementById("photo-prev");
   const photoToggleButton = document.getElementById("photo-toggle");
   const photoNextButton = document.getElementById("photo-next");
+  const photoViewerOnlyButton = document.getElementById("photo-viewer-only");
   const photoOpenLink = document.getElementById("photo-open");
   const photoDownloadLink = document.getElementById("photo-download");
   const photoPlayButton = document.getElementById("photo-play");
+  const viewerOverlay = document.getElementById("viewer-overlay");
+  const viewerCloseButton = document.getElementById("viewer-close");
+  const viewerPrevButton = document.getElementById("viewer-prev");
+  const viewerNextButton = document.getElementById("viewer-next");
+  const viewerPhoto = document.getElementById("viewer-photo");
+  const viewerVideo = document.getElementById("viewer-video");
 
   let currentSongIndex = 0;
   let currentPlaylist = songs; 
@@ -37,11 +44,19 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentPhotoIndex = 0;
   let slideshowTimer = null;
   let slideshowActive = false;
+  let viewerOpen = false;
+  let viewerChromeTimer = null;
+  let viewerReturnFocusTarget = null;
+  let viewerTouchStartX = 0;
+  let viewerTouchStartY = 0;
+  let viewerTouchActive = false;
   let pendingVideoEndedHandler = null;
   let renderCycle = 0;
   const brokenAlbumIndexes = new Set();
 
   const slideshowDelayMs = 7000;
+  const viewerChromeDelayMs = 1800;
+  const viewerSwipeThresholdPx = 48;
   const albumPhotos = Array.isArray(photoAlbum) ? [...photoAlbum] : [];
   const manifestPhotos = Array.isArray(window.autoAlbumManifest) ? window.autoAlbumManifest : [];
   const supportedMediaExtensions = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif", "mp4", "mov", "m4v", "webm", "ogg"]);
@@ -405,10 +420,16 @@ document.addEventListener("DOMContentLoaded", () => {
       photoDownloadLink.removeAttribute("download");
     }
 
+    if (photoViewerOnlyButton) {
+      photoViewerOnlyButton.disabled = true;
+    }
+
     if (photoPlayButton) {
       photoPlayButton.textContent = "Play";
       photoPlayButton.disabled = false;
     }
+
+    closeViewer();
   }
 
   function updatePhotoUiForNoLoadableItems() {
@@ -438,6 +459,116 @@ document.addEventListener("DOMContentLoaded", () => {
     if (albumVideo && pendingVideoEndedHandler) {
       albumVideo.removeEventListener("ended", pendingVideoEndedHandler);
       pendingVideoEndedHandler = null;
+    }
+  }
+
+  function clearViewerChromeTimer() {
+    if (viewerChromeTimer) {
+      window.clearTimeout(viewerChromeTimer);
+      viewerChromeTimer = null;
+    }
+  }
+
+  function showViewerChrome() {
+    if (!viewerOverlay) return;
+    viewerOverlay.classList.remove("viewer-chrome-hidden");
+  }
+
+  function scheduleViewerChromeHide() {
+    clearViewerChromeTimer();
+    if (!viewerOpen || !viewerOverlay) return;
+
+    viewerChromeTimer = window.setTimeout(() => {
+      if (viewerOpen) {
+        viewerOverlay.classList.add("viewer-chrome-hidden");
+      }
+    }, viewerChromeDelayMs);
+  }
+
+  function nudgeViewerChrome() {
+    showViewerChrome();
+    scheduleViewerChromeHide();
+  }
+
+  function renderStandaloneViewer() {
+    if (!viewerOpen || !viewerOverlay || !viewerPhoto) return;
+
+    nudgeViewerChrome();
+
+    const photo = normalizePhotoItem(albumPhotos[currentPhotoIndex], currentPhotoIndex);
+    if (!photo.src) return;
+
+    if (photo.type === "video" && viewerVideo) {
+      viewerPhoto.style.display = "none";
+      viewerPhoto.removeAttribute("src");
+
+      viewerVideo.style.display = "block";
+      viewerVideo.src = photo.src;
+      viewerVideo.poster = photo.poster || "";
+      viewerVideo.load();
+    } else {
+      if (viewerVideo) {
+        viewerVideo.pause();
+        viewerVideo.removeAttribute("src");
+        viewerVideo.removeAttribute("poster");
+        viewerVideo.load();
+        viewerVideo.style.display = "none";
+      }
+
+      viewerPhoto.style.display = "block";
+      viewerPhoto.src = photo.src;
+      viewerPhoto.alt = photo.title || "Expanded album image";
+    }
+  }
+
+  function openViewer() {
+    if (!albumPhotos.length || !viewerOverlay) return;
+
+    viewerReturnFocusTarget = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : photoViewerOnlyButton;
+    viewerOpen = true;
+    viewerOverlay.hidden = false;
+    viewerOverlay.setAttribute("aria-hidden", "false");
+    document.body.classList.add("viewer-open");
+    showViewerChrome();
+    scheduleViewerChromeHide();
+    renderStandaloneViewer();
+    if (viewerCloseButton) {
+      viewerCloseButton.focus();
+    }
+  }
+
+  function closeViewer() {
+    if (!viewerOverlay) return;
+
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLElement && viewerOverlay.contains(activeElement)) {
+      if (viewerReturnFocusTarget instanceof HTMLElement) {
+        viewerReturnFocusTarget.focus();
+      } else {
+        activeElement.blur();
+      }
+    }
+
+    viewerOpen = false;
+    clearViewerChromeTimer();
+    viewerOverlay.hidden = true;
+    viewerOverlay.setAttribute("aria-hidden", "true");
+    viewerOverlay.classList.remove("viewer-chrome-hidden");
+    document.body.classList.remove("viewer-open");
+    viewerReturnFocusTarget = null;
+
+    if (viewerVideo) {
+      viewerVideo.pause();
+      viewerVideo.removeAttribute("src");
+      viewerVideo.removeAttribute("poster");
+      viewerVideo.load();
+      viewerVideo.style.display = "none";
+    }
+
+    if (viewerPhoto) {
+      viewerPhoto.removeAttribute("src");
     }
   }
 
@@ -569,9 +700,17 @@ document.addEventListener("DOMContentLoaded", () => {
       photoDownloadLink.setAttribute("download", photo.title || `photo-${safeIndex + 1}`);
     }
 
+    if (photoViewerOnlyButton) {
+      photoViewerOnlyButton.disabled = false;
+    }
+
     [photoPrevButton, photoToggleButton, photoNextButton].forEach((button) => {
       if (button) button.disabled = false;
     });
+
+    if (viewerOpen) {
+      renderStandaloneViewer();
+    }
 
     if (slideshowActive) {
       armSlideshowForCurrentItem();
@@ -866,9 +1005,100 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  if (photoViewerOnlyButton) {
+    photoViewerOnlyButton.addEventListener("click", () => {
+      openViewer();
+    });
+  }
+
+  if (viewerCloseButton) {
+    viewerCloseButton.addEventListener("click", () => {
+      closeViewer();
+    });
+  }
+
+  if (viewerPrevButton) {
+    viewerPrevButton.addEventListener("click", () => {
+      showPrevPhoto();
+    });
+  }
+
+  if (viewerNextButton) {
+    viewerNextButton.addEventListener("click", () => {
+      showNextPhoto();
+    });
+  }
+
+  if (viewerOverlay) {
+    viewerOverlay.addEventListener("click", (event) => {
+      nudgeViewerChrome();
+      if (event.target === viewerOverlay) {
+        closeViewer();
+      }
+    });
+
+    viewerOverlay.addEventListener("pointermove", () => {
+      if (viewerOpen) {
+        nudgeViewerChrome();
+      }
+    });
+
+    viewerOverlay.addEventListener("touchstart", (event) => {
+      if (!viewerOpen || !event.touches.length) return;
+
+      const touch = event.touches[0];
+      viewerTouchStartX = touch.clientX;
+      viewerTouchStartY = touch.clientY;
+      viewerTouchActive = true;
+      nudgeViewerChrome();
+    }, { passive: true });
+
+    viewerOverlay.addEventListener("touchend", (event) => {
+      if (!viewerOpen || !viewerTouchActive || !event.changedTouches.length) return;
+
+      const touch = event.changedTouches[0];
+      const deltaX = touch.clientX - viewerTouchStartX;
+      const deltaY = touch.clientY - viewerTouchStartY;
+      viewerTouchActive = false;
+
+      if (Math.abs(deltaX) < viewerSwipeThresholdPx || Math.abs(deltaX) <= Math.abs(deltaY)) {
+        return;
+      }
+
+      if (deltaX < 0) {
+        showNextPhoto();
+      } else {
+        showPrevPhoto();
+      }
+    }, { passive: true });
+  }
+
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       stopSlideshow();
+      closeViewer();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (!viewerOpen) return;
+
+    nudgeViewerChrome();
+
+    if (event.key === "Escape") {
+      closeViewer();
+      return;
+    }
+
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      showPrevPhoto();
+      return;
+    }
+
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      showNextPhoto();
     }
   });
 

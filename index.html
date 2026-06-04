@@ -43,6 +43,7 @@
         </div>
 
         <div class="photo-links">
+          <button type="button" id="photo-viewer-only" class="photo-link-btn">Viewer Only</button>
           <a id="photo-open" href="#" target="_blank" rel="noopener noreferrer">Open on iPhone</a>
           <a id="photo-download" href="#" target="_blank" rel="noopener noreferrer" download>Download Item</a>
           <button type="button" id="photo-play" class="photo-link-btn">Play</button>
@@ -103,6 +104,16 @@
         <div id="track-list" class="track-list"></div>
       </div>
     </main>
+  </div>
+
+  <div class="viewer-overlay" id="viewer-overlay" hidden aria-hidden="true">
+    <button type="button" class="viewer-close" id="viewer-close" aria-label="Close viewer">Close</button>
+    <button type="button" class="viewer-nav viewer-nav-prev" id="viewer-prev" aria-label="Previous item">&#8249;</button>
+    <figure class="viewer-stage" id="viewer-stage">
+      <img id="viewer-photo" src="" alt="Expanded album image" loading="lazy" />
+      <video id="viewer-video" controls playsinline preload="metadata"></video>
+    </figure>
+    <button type="button" class="viewer-nav viewer-nav-next" id="viewer-next" aria-label="Next item">&#8250;</button>
   </div>
 
   <script src="https://w.soundcloud.com/player/api.js"></script>
