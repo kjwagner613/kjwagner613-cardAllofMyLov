@@ -8,6 +8,16 @@
   font-style: normal;
 }
 
+:root {
+  --safe-vh: 100vh;
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --safe-vh: 100dvh;
+  }
+}
+
 /* Base Page */
 body {
   font-family: "Trebuchet MS", Arial, sans-serif;
@@ -18,13 +28,13 @@ body {
     linear-gradient(145deg, #fff8fc 0%, #ffe7f4 46%, #fff1f8 100%);
   color: #7a2856;
   margin: 0;
-  min-height: 100vh;
+  min-height: var(--safe-vh);
   padding: 1.5rem;
 }
 
 .page-shell {
   position: relative;
-  min-height: calc(100vh - 3rem);
+  min-height: calc(var(--safe-vh) - 3rem);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -203,7 +213,8 @@ body {
 
 #album-photo {
   width: 100%;
-  height: clamp(260px, 56vh, 560px);
+  height: clamp(170px, 46vh, 500px);
+  max-height: calc(var(--safe-vh) - 20rem);
   object-fit: contain;
   border-radius: 16px;
   border: 1px solid rgba(255, 143, 205, 0.45);
@@ -213,7 +224,8 @@ body {
 #album-video {
   display: none;
   width: 100%;
-  height: clamp(260px, 56vh, 560px);
+  height: clamp(170px, 46vh, 500px);
+  max-height: calc(var(--safe-vh) - 20rem);
   object-fit: contain;
   border-radius: 16px;
   border: 1px solid rgba(255, 143, 205, 0.45);
@@ -298,6 +310,8 @@ body {
 }
 
 .viewer-overlay {
+  --viewer-pad: 1.5rem;
+  --viewer-top-ui: 4.75rem;
   position: fixed;
   inset: 0;
   z-index: 1000;
@@ -305,7 +319,9 @@ body {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 1rem;
-  padding: 1.5rem;
+  height: var(--safe-vh);
+  padding: var(--viewer-pad);
+  box-sizing: border-box;
   background: rgba(86, 14, 50, 0.92);
   backdrop-filter: blur(10px);
   overflow: hidden;
@@ -317,17 +333,18 @@ body {
 
 .viewer-stage {
   margin: 0;
+  min-height: 0;
   min-width: 0;
   display: grid;
   place-items: center;
   width: 100%;
-  height: calc(100vh - 3rem);
+  height: 100%;
 }
 
 .viewer-stage img,
 .viewer-stage video {
   max-width: 100%;
-  max-height: 100%;
+  max-height: calc(var(--safe-vh) - (var(--viewer-pad) * 2) - var(--viewer-top-ui));
   width: auto;
   height: auto;
   object-fit: contain;
@@ -683,15 +700,22 @@ body.viewer-open {
   }
 
   .viewer-overlay {
+    --viewer-pad: 0.75rem;
+    --viewer-top-ui: 3.9rem;
     grid-template-columns: 1fr;
     grid-template-areas: "stage";
     align-items: center;
-    padding: 0.75rem;
   }
 
   .viewer-stage {
     grid-area: stage;
-    height: calc(100vh - 1.5rem);
+    height: 100%;
+  }
+
+  #album-photo,
+  #album-video {
+    height: clamp(150px, 40vh, 360px);
+    max-height: calc(var(--safe-vh) - 16rem);
   }
 
   .viewer-nav-prev {
