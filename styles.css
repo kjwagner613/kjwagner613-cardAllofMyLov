@@ -198,13 +198,13 @@ body {
   display: grid;
   gap: 0.55rem;
   justify-items: center;
+  grid-template-rows: auto auto;
 }
 
 #album-photo {
   width: 100%;
-  aspect-ratio: 16 / 9;
-  max-height: min(64vh, 560px);
-  object-fit: cover;
+  height: clamp(260px, 56vh, 560px);
+  object-fit: contain;
   border-radius: 16px;
   border: 1px solid rgba(255, 143, 205, 0.45);
   background: rgba(255, 245, 249, 0.95);
@@ -213,23 +213,10 @@ body {
 #album-video {
   display: none;
   width: 100%;
-  aspect-ratio: 16 / 9;
-  max-height: min(64vh, 560px);
+  height: clamp(260px, 56vh, 560px);
   object-fit: contain;
   border-radius: 16px;
   border: 1px solid rgba(255, 143, 205, 0.45);
-  background: rgba(255, 245, 249, 0.95);
-}
-
-.photo-stage[data-orientation="portrait"] #album-photo,
-.photo-stage[data-orientation="portrait"] #album-video {
-  width: min(100%, 460px);
-  aspect-ratio: 3 / 4;
-  max-height: min(70vh, 680px);
-}
-
-.photo-stage[data-orientation="portrait"] #album-photo {
-  object-fit: contain;
   background: rgba(255, 245, 249, 0.95);
 }
 
@@ -241,6 +228,7 @@ body {
   color: var(--muted);
   font-size: 0.92rem;
   line-height: 1.4;
+  min-height: 1.4rem;
 }
 
 .photo-controls {
@@ -266,6 +254,19 @@ body {
   background: linear-gradient(135deg, rgba(255, 220, 234, 0.95), rgba(255, 241, 247, 0.95));
 }
 
+.photo-links .photo-link-btn {
+  display: inline-block;
+  text-align: center;
+  border: 1px solid rgba(255, 143, 205, 0.55);
+  color: #b13073;
+  padding: 0.7rem 1rem;
+  border-radius: 12px;
+  text-decoration: none;
+  background: linear-gradient(135deg, rgba(255, 220, 234, 0.95), rgba(255, 241, 247, 0.95));
+  font: inherit;
+  cursor: pointer;
+}
+
 .photo-links a:hover {
   background: linear-gradient(135deg, #ff4aa5, #ff1493);
   border-color: #ff1493;
@@ -273,8 +274,17 @@ body {
   transition: all 0.3s ease;
 }
 
+.photo-links .photo-link-btn:hover {
+  background: linear-gradient(135deg, #ff4aa5, #ff1493);
+  border-color: #ff1493;
+  color: white;
+  transition: all 0.3s ease;
+}
+
 .photo-links a.is-disabled,
-.photo-links a.is-disabled:hover {
+.photo-links a.is-disabled:hover,
+.photo-links .photo-link-btn:disabled,
+.photo-links .photo-link-btn:disabled:hover {
   pointer-events: none;
   opacity: 0.55;
   color: #a27a8f;
@@ -574,11 +584,6 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .photo-stage[data-orientation="portrait"] #album-photo,
-  .photo-stage[data-orientation="portrait"] #album-video {
-    width: 100%;
-  }
-
   .player-aside {
     flex-direction: column;
     align-items: flex-start;
@@ -589,7 +594,7 @@ body {
 .player-aside {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 1rem;
   padding: 1rem;
 }
@@ -622,6 +627,7 @@ body {
 .medallion-row {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.75rem;
   flex-shrink: 0;
   transform: none;
@@ -650,25 +656,6 @@ body {
 
 .medallion-round {
   border-radius: 999px;
-}
-
-/* Song List CTA */
-#songList {
-  display: inline-block;
-  text-align: center;
-  border: 1px solid rgba(255, 143, 205, 0.55);
-  color: #b13073;
-  padding: 0.95rem 1.35rem;
-  border-radius: 14px;
-  text-decoration: none;
-  background: linear-gradient(135deg, rgba(255, 220, 234, 0.95), rgba(255, 241, 247, 0.95));
-}
-
-#songList:hover {
-  background: linear-gradient(135deg, #ff4aa5, #ff1493);
-  border-color: #ff1493;
-  color: white;
-  transition: all 0.3s ease;
 }
 
 .titles-container {

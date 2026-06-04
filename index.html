@@ -7,7 +7,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <title>Music Card</title>
+  <title>Joanne's Card</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="icon" href="./assets/KWJS.ico" />
 </head>
@@ -45,6 +45,7 @@
         <div class="photo-links">
           <a id="photo-open" href="#" target="_blank" rel="noopener noreferrer">Open on iPhone</a>
           <a id="photo-download" href="#" target="_blank" rel="noopener noreferrer" download>Download Item</a>
+          <button type="button" id="photo-play" class="photo-link-btn">Play</button>
         </div>
       </div>
 
@@ -86,23 +87,7 @@
           </p>
         </div>
 
-        <div class="card-actions">
-          <a href="songlist.html" id="songList">Edit Song List</a>
-          <label class="playlist-picker" for="playlist-selector">
-            <span>Source</span>
-            <select id="playlist-selector">
-              <option value="songs" selected>Local</option>
-              <option value="joanneCloud">Joanne's SoundCloud</option>
-              <option value="kevinCloud">Kevin's SoundCloud</option>
-            </select>
-          </label>
-        </div>
-
         <div class="player-aside">
-          <div class="player-aside-copy">
-            <p class="player-aside-label">Now Playing</p>
-            <div id="sender-aside" class="player-aside-text" hidden></div>
-          </div>
           <div class="medallion-row" aria-label="Signature medallions">
             <img class="herMedallion" src="assets/jsMedallion.png" alt="JS medallion" />
             <img class="medallion" src="assets/KW-2026Medallion-1.png" alt="KW and JS medallion" />

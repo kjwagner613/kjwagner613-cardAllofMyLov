@@ -27,18 +27,24 @@ document.addEventListener("DOMContentLoaded", () => {
   const photoNextButton = document.getElementById("photo-next");
   const photoOpenLink = document.getElementById("photo-open");
   const photoDownloadLink = document.getElementById("photo-download");
+  const photoPlayButton = document.getElementById("photo-play");
 
   let currentSongIndex = 0;
   let currentPlaylist = songs; // Default playlist
+  let currentPlaylistKey = "songs";
   let currentPlaylistType = 'local'; // 'local' or 'soundcloud'
   let soundcloudWidget = null;
   let currentPhotoIndex = 0;
   let slideshowTimer = null;
+  let slideshowActive = false;
+  let pendingVideoEndedHandler = null;
   let renderCycle = 0;
   const brokenAlbumIndexes = new Set();
 
-  const slideshowDelayMs = 4200;
-  const albumPhotos = Array.isArray(photoAlbum) ? photoAlbum : [];
+  const slideshowDelayMs = 7000;
+  const albumPhotos = Array.isArray(photoAlbum) ? [...photoAlbum] : [];
+  const supportedMediaExtensions = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif", "mp4", "mov", "m4v", "webm", "ogg"]);
+  const mediaDirectory = "assets/media";
 
   // SoundCloud playlist URLs
   const soundcloudPlaylists = {
@@ -74,19 +80,22 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Handle playlist selection
-  playlistSelector.addEventListener('change', function () {
-    const selectedPlaylist = this.value;
-    playlistDisplay.textContent = playlistNames[selectedPlaylist];
+  if (playlistSelector) {
+    playlistSelector.addEventListener('change', function () {
+      const selectedPlaylist = this.value;
+      currentPlaylistKey = selectedPlaylist;
+      playlistDisplay.textContent = playlistNames[selectedPlaylist];
 
-    if (selectedPlaylist === 'joanneCloud' || selectedPlaylist === 'kevinCloud') {
-      // Switch to SoundCloud mode
-      switchToSoundCloud(selectedPlaylist);
-    } else {
-      // Switch to local mode
-      switchToLocal(selectedPlaylist);
-    }
-    renderTrackList();
-  });
+      if (selectedPlaylist === 'joanneCloud' || selectedPlaylist === 'kevinCloud') {
+        // Switch to SoundCloud mode
+        switchToSoundCloud(selectedPlaylist);
+      } else {
+        // Switch to local mode
+        switchToLocal(selectedPlaylist);
+      }
+      renderTrackList();
+    });
+  }
 
   function hydrateCardCopy() {
     if (typeof cardConfig === "undefined") return;
@@ -125,7 +134,10 @@ document.addEventListener("DOMContentLoaded", () => {
       || !currentSong
       || currentSong.file !== expectedSong.file;
 
-    playlistSelector.value = "songs";
+    if (playlistSelector) {
+      playlistSelector.value = "songs";
+    }
+    currentPlaylistKey = "songs";
     playlistDisplay.textContent = playlistNames.songs;
     currentPlaylist = playlists.songs;
 
@@ -145,7 +157,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <div class="track-item">
           <div class="track-number">SC</div>
           <div class="track-meta">
-            <strong>${playlistNames[playlistSelector.value]}</strong>
+            <strong>${playlistNames[currentPlaylistKey]}</strong>
             <span>Use the player controls to browse the SoundCloud set.</span>
           </div>
         </div>
@@ -207,6 +219,111 @@ document.addEventListener("DOMContentLoaded", () => {
     return "image";
   }
 
+  function isSupportedMediaPath(src) {
+    const cleanSrc = String(src).split("?")[0].split("#")[0].toLowerCase();
+    const extension = cleanSrc.includes(".") ? cleanSrc.slice(cleanSrc.lastIndexOf(".") + 1) : "";
+    return supportedMediaExtensions.has(extension);
+  }
+
+  function normalizeAssetPath(href) {
+    const cleanHref = String(href || "").trim();
+    if (!cleanHref || cleanHref.startsWith("#")) return "";
+    if (cleanHref.startsWith("../") || cleanHref.startsWith("./../")) return "";
+    if (cleanHref.endsWith("/")) return "";
+
+    let decoded = cleanHref;
+    try {
+      decoded = decodeURIComponent(cleanHref);
+    } catch (_error) {
+      decoded = cleanHref;
+    }
+
+    const withoutQuery = decoded.split("?")[0].split("#")[0];
+    if (!withoutQuery) return "";
+
+    if (withoutQuery.startsWith(`${mediaDirectory}/`)) {
+      return withoutQuery;
+    }
+
+    if (withoutQuery.startsWith(`/${mediaDirectory}/`)) {
+      return withoutQuery.slice(1);
+    }
+
+    if (withoutQuery.startsWith("assets/")) {
+      const tail = withoutQuery.slice("assets/".length);
+      return `${mediaDirectory}/${tail.replace(/^media\//, "")}`;
+    }
+
+    return `${mediaDirectory}/${withoutQuery.replace(/^\.?\//, "")}`;
+  }
+
+  async function extendAlbumFromAssetsDirectory() {
+    try {
+      const response = await fetch(`${mediaDirectory}/`);
+      if (!response.ok) return;
+
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.toLowerCase().includes("html")) return;
+
+      const directoryHtml = await response.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(directoryHtml, "text/html");
+      const links = Array.from(doc.querySelectorAll("a"));
+      const discoveredPaths = new Set();
+
+      links.forEach((link) => {
+        const assetPath = normalizeAssetPath(link.getAttribute("href") || "");
+        if (!assetPath || !isSupportedMediaPath(assetPath)) return;
+        discoveredPaths.add(assetPath);
+      });
+
+      // Fallback for directory pages that do not render plain <a href> items.
+      if (!discoveredPaths.size) {
+        const mediaNamePattern = /(?:^|[\s"'=/])(?!\.{1,2}\/)([^\s"'<>]+\.(?:jpe?g|png|gif|webp|bmp|mp4|mov|m4v|webm|ogg))(?=$|[\s"'<>?#])/gi;
+        let match = mediaNamePattern.exec(directoryHtml);
+        while (match) {
+          const rawName = (match[1] || "").trim();
+          const assetPath = normalizeAssetPath(rawName);
+          if (assetPath && isSupportedMediaPath(assetPath)) {
+            discoveredPaths.add(assetPath);
+          }
+          match = mediaNamePattern.exec(directoryHtml);
+        }
+      }
+
+      if (!discoveredPaths.size) return;
+
+      const existing = new Set(
+        albumPhotos
+          .map((entry, index) => normalizePhotoItem(entry, index).src)
+          .map((src) => String(src).toLowerCase())
+      );
+
+      const discovered = [];
+      discoveredPaths.forEach((assetPath) => {
+        if (existing.has(assetPath.toLowerCase())) return;
+
+        existing.add(assetPath.toLowerCase());
+        const filename = assetPath.split("/").pop() || assetPath;
+        const title = filename.replace(/\.[^/.]+$/, "");
+
+        discovered.push({
+          src: assetPath,
+          title,
+          caption: "",
+          type: detectMediaType(assetPath)
+        });
+      });
+
+      if (!discovered.length) return;
+
+      albumPhotos.push(...discovered);
+      renderPhoto(currentPhotoIndex);
+    } catch (_error) {
+      // Some static servers do not expose directory listings. Fallback silently.
+    }
+  }
+
   function updatePhotoUiForMissingAlbum() {
     if (!albumPhoto || !albumCaption || !photoCount) return;
 
@@ -240,6 +357,11 @@ document.addEventListener("DOMContentLoaded", () => {
       photoDownloadLink.href = "#";
       photoDownloadLink.removeAttribute("download");
     }
+
+    if (photoPlayButton) {
+      photoPlayButton.textContent = "Play";
+      photoPlayButton.disabled = false;
+    }
   }
 
   function updatePhotoUiForNoLoadableItems() {
@@ -256,6 +378,47 @@ document.addEventListener("DOMContentLoaded", () => {
     const orientation = safeHeight > safeWidth ? "portrait" : "landscape";
     photoStage.dataset.orientation = orientation;
     photoStage.dataset.mediaType = mediaType;
+  }
+
+  function clearSlideshowTimer() {
+    if (slideshowTimer) {
+      window.clearTimeout(slideshowTimer);
+      slideshowTimer = null;
+    }
+  }
+
+  function clearPendingVideoEndedHandler() {
+    if (albumVideo && pendingVideoEndedHandler) {
+      albumVideo.removeEventListener("ended", pendingVideoEndedHandler);
+      pendingVideoEndedHandler = null;
+    }
+  }
+
+  function armSlideshowForCurrentItem() {
+    clearSlideshowTimer();
+    clearPendingVideoEndedHandler();
+
+    if (!slideshowActive || !albumPhotos.length) return;
+
+    const currentItem = normalizePhotoItem(albumPhotos[currentPhotoIndex], currentPhotoIndex);
+    const isVideoVisible = albumVideo && albumVideo.style.display !== "none";
+
+    if (currentItem.type === "video" && isVideoVisible) {
+      pendingVideoEndedHandler = () => {
+        pendingVideoEndedHandler = null;
+        if (slideshowActive) {
+          showNextPhoto();
+        }
+      };
+      albumVideo.addEventListener("ended", pendingVideoEndedHandler, { once: true });
+      albumVideo.play().catch(() => {
+        // If autoplay is blocked, use fallback so slideshow does not freeze.
+        slideshowTimer = window.setTimeout(showNextPhoto, slideshowDelayMs);
+      });
+      return;
+    }
+
+    slideshowTimer = window.setTimeout(showNextPhoto, slideshowDelayMs);
   }
 
   function renderPhoto(index, attempts = 0) {
@@ -310,7 +473,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       albumVideo.load();
 
-      if (slideshowTimer) {
+      if (slideshowActive) {
         albumVideo.play().catch(() => {
           // Autoplay can be blocked in some mobile browsers.
         });
@@ -362,6 +525,10 @@ document.addEventListener("DOMContentLoaded", () => {
     [photoPrevButton, photoToggleButton, photoNextButton].forEach((button) => {
       if (button) button.disabled = false;
     });
+
+    if (slideshowActive) {
+      armSlideshowForCurrentItem();
+    }
   }
 
   function showNextPhoto() {
@@ -373,10 +540,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function stopSlideshow() {
-    if (slideshowTimer) {
-      window.clearInterval(slideshowTimer);
-      slideshowTimer = null;
-    }
+    slideshowActive = false;
+    clearSlideshowTimer();
+    clearPendingVideoEndedHandler();
     if (albumVideo) {
       albumVideo.pause();
     }
@@ -386,20 +552,16 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function startSlideshow() {
-    if (!albumPhotos.length || slideshowTimer) return;
-    slideshowTimer = window.setInterval(showNextPhoto, slideshowDelayMs);
-    if (albumVideo && albumVideo.style.display !== "none") {
-      albumVideo.play().catch(() => {
-        // Autoplay can be blocked in some mobile browsers.
-      });
-    }
+    if (!albumPhotos.length || slideshowActive) return;
+    slideshowActive = true;
+    armSlideshowForCurrentItem();
     if (photoToggleButton) {
       photoToggleButton.textContent = "Stop Slideshow";
     }
   }
 
   function toggleSlideshow() {
-    if (slideshowTimer) {
+    if (slideshowActive) {
       stopSlideshow();
     } else {
       startSlideshow();
@@ -407,6 +569,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function switchToLocal(playlistKey) {
+    currentPlaylistKey = playlistKey;
     currentPlaylistType = 'local';
     currentPlaylist = playlists[playlistKey];
     currentSongIndex = 0;
@@ -428,6 +591,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function switchToSoundCloud(playlistKey) {
+    currentPlaylistKey = playlistKey;
     currentPlaylistType = 'soundcloud';
     currentSongIndex = 0;
 
@@ -603,8 +767,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   if (requestedPlaylistKey && playlists[requestedPlaylistKey]) {
+    currentPlaylistKey = requestedPlaylistKey;
     currentPlaylist = playlists[requestedPlaylistKey];
-    playlistSelector.value = requestedPlaylistKey;
+    if (playlistSelector) {
+      playlistSelector.value = requestedPlaylistKey;
+    }
     playlistDisplay.textContent = playlistNames[requestedPlaylistKey];
   }
 
@@ -640,6 +807,18 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  if (photoPlayButton) {
+    photoPlayButton.addEventListener("click", () => {
+      if (currentPlaylistType === "soundcloud" && soundcloudWidget) {
+        soundcloudWidget.play();
+      } else {
+        audioPlayer.play().catch(() => {
+          // Playback can be blocked if the browser requires direct user interaction.
+        });
+      }
+    });
+  }
+
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       stopSlideshow();
@@ -647,6 +826,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   renderPhoto(0);
+  extendAlbumFromAssetsDirectory();
 
   function syncBottomImageHeight() {
     const bottomImage = document.getElementById('pic80s');
