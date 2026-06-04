@@ -238,6 +238,14 @@ document.addEventListener("DOMContentLoaded", () => {
       decoded = cleanHref;
     }
 
+    if (/^https?:\/\//i.test(decoded)) {
+      try {
+        decoded = new URL(decoded).pathname;
+      } catch (_error) {
+        return "";
+      }
+    }
+
     const withoutQuery = decoded.split("?")[0].split("#")[0];
     if (!withoutQuery) return "";
 
@@ -259,26 +267,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function extendAlbumFromAssetsDirectory() {
     try {
-      const response = await fetch(`${mediaDirectory}/`);
-      if (!response.ok) return;
-
-      const contentType = response.headers.get("content-type") || "";
-      if (!contentType.toLowerCase().includes("html")) return;
-
-      const directoryHtml = await response.text();
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(directoryHtml, "text/html");
-      const links = Array.from(doc.querySelectorAll("a"));
       const discoveredPaths = new Set();
 
-      links.forEach((link) => {
-        const assetPath = normalizeAssetPath(link.getAttribute("href") || "");
-        if (!assetPath || !isSupportedMediaPath(assetPath)) return;
-        discoveredPaths.add(assetPath);
-      });
+      const candidateUrls = [
+        `${mediaDirectory}/`,
+        `${mediaDirectory}`,
+        `./${mediaDirectory}/`,
+        `./${mediaDirectory}`
+      ];
 
-      // Fallback for directory pages that do not render plain <a href> items.
-      if (!discoveredPaths.size) {
+      for (const url of candidateUrls) {
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) {
+          continue;
+        }
+
+        const directoryHtml = await response.text();
+        if (!directoryHtml.trim()) {
+          continue;
+        }
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(directoryHtml, "text/html");
+        const links = Array.from(doc.querySelectorAll("a"));
+
+        links.forEach((link) => {
+          const assetPath = normalizeAssetPath(link.getAttribute("href") || "");
+          if (!assetPath || !isSupportedMediaPath(assetPath)) return;
+          discoveredPaths.add(assetPath);
+        });
+
         const mediaNamePattern = /(?:^|[\s"'=/])(?!\.{1,2}\/)([^\s"'<>]+\.(?:jpe?g|png|gif|webp|bmp|mp4|mov|m4v|webm|ogg))(?=$|[\s"'<>?#])/gi;
         let match = mediaNamePattern.exec(directoryHtml);
         while (match) {
@@ -288,6 +306,10 @@ document.addEventListener("DOMContentLoaded", () => {
             discoveredPaths.add(assetPath);
           }
           match = mediaNamePattern.exec(directoryHtml);
+        }
+
+        if (discoveredPaths.size) {
+          break;
         }
       }
 
