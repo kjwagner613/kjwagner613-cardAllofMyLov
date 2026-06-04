@@ -4,12 +4,41 @@ Just a little mp3 streamer. Wanted somethign that worked everywhere. this fit pe
 
 The app now supports a mixed media album (photos + videos) on the main card page:
 
-- `Prev Photo` and `Next Photo` buttons
+- `Prev Item` and `Next Item` buttons
 - `Start Slideshow` / `Stop Slideshow`
 - `Open on iPhone` link (opens full image or video in a new tab)
-- `Download Photo` link
+- `Download Item` link
 
-### Add your photos
+### Recommended media workflow
+
+Use this flow for reliable local + online behavior:
+
+1. Put all slideshow files in `assets/media/`.
+2. Keep `card-data.js` for card copy and songs.
+3. Let `media-manifest.js` provide the full slideshow file list.
+
+### Add new photos or videos
+
+After adding files to `assets/media/`, regenerate `media-manifest.js`:
+
+```bash
+cd /home/kjwagner613/apps/cardAllofMyLove
+{
+	echo '// Auto-generated from assets/media';
+	echo 'window.autoAlbumManifest = [';
+	find assets/media -maxdepth 1 -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' -o -iname '*.webp' -o -iname '*.bmp' -o -iname '*.mp4' -o -iname '*.mov' -o -iname '*.m4v' -o -iname '*.webm' -o -iname '*.ogg' \) -printf '%f\n' | LC_ALL=C sort -f | sed 's/.*/  "assets\/media\/&",/';
+	echo '];';
+} > media-manifest.js
+```
+
+Then commit and push updated files.
+
+### Optional: photoAlbum entries in card-data.js
+
+You can keep a few items in `photoAlbum` if you want custom titles/captions.
+You do not need to manually list every media file there anymore.
+
+### Example photoAlbum format (optional)
 
 Edit `card-data.js` and update `photoAlbum`.
 
@@ -18,13 +47,13 @@ Example format:
 ```js
 const photoAlbum = [
   {
-	 src: "assets/photos/photo-01.jpg",
+	 src: "assets/media/photo-01.jpg",
 	 title: "Beach Day",
 	 caption: "Sunset walk together.",
-	 downloadUrl: "assets/photos/photo-01.jpg"
+	 downloadUrl: "assets/media/photo-01.jpg"
 	},
 	{
-		src: "assets/photos/memory-clip.mp4",
+		src: "assets/media/memory-clip.mp4",
 		title: "Short Video",
 		caption: "A small moment worth replaying.",
 		type: "video"
@@ -34,19 +63,10 @@ const photoAlbum = [
 
 Supported video file extensions for automatic detection: `.mp4`, `.mov`, `.m4v`, `.webm`, `.ogg`
 
-### Photo source options
+### Note about online hosting
 
-1. Local files in this project
-	- Put images under `assets/` (for example `assets/photos/`).
-	- Use the relative path in `src`.
-
-2. Dropbox links
-	- Use direct file links when possible.
-	- If a link does not render as an image, convert from `www.dropbox.com` share URL to a direct raw URL.
-
-3. MEGA links
-	- Use the file URL in `src` if it can be publicly opened.
-	- If direct embedding is blocked, users can still use `Open on iPhone` to view it in browser.
+Some hosts do not allow folder listing fetches in production.
+That is why `media-manifest.js` is used as the source of truth for full slideshow discovery.
 
 ### iPhone behavior
 
