@@ -43,6 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const slideshowDelayMs = 7000;
   const albumPhotos = Array.isArray(photoAlbum) ? [...photoAlbum] : [];
+  const manifestPhotos = Array.isArray(window.autoAlbumManifest) ? window.autoAlbumManifest : [];
   const supportedMediaExtensions = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif", "mp4", "mov", "m4v", "webm", "ogg"]);
   const mediaDirectory = "assets/media";
 
@@ -204,6 +205,30 @@ document.addEventListener("DOMContentLoaded", () => {
       poster: photo.poster || "",
       type: detectMediaType(photo.src || "", photo.type || photo.mediaType || "")
     };
+  }
+
+  function mergeManifestIntoAlbum() {
+    if (!manifestPhotos.length) return;
+
+    const existing = new Set(
+      albumPhotos
+        .map((entry, index) => normalizePhotoItem(entry, index).src)
+        .map((src) => String(src).toLowerCase())
+    );
+
+    manifestPhotos.forEach((src) => {
+      const normalizedSrc = String(src || "").trim();
+      if (!normalizedSrc || !isSupportedMediaPath(normalizedSrc)) return;
+      const key = normalizedSrc.toLowerCase();
+      if (existing.has(key)) return;
+      existing.add(key);
+      albumPhotos.push({
+        src: normalizedSrc,
+        title: normalizedSrc.split("/").pop() || "",
+        caption: "",
+        type: detectMediaType(normalizedSrc)
+      });
+    });
   }
 
   function detectMediaType(src, explicitType = "") {
@@ -847,8 +872,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  mergeManifestIntoAlbum();
   renderPhoto(0);
-  extendAlbumFromAssetsDirectory();
+  if (!manifestPhotos.length) {
+    extendAlbumFromAssetsDirectory();
+  }
 
   function syncBottomImageHeight() {
     const bottomImage = document.getElementById('pic80s');
