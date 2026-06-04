@@ -30,9 +30,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const photoPlayButton = document.getElementById("photo-play");
 
   let currentSongIndex = 0;
-  let currentPlaylist = songs; // Default playlist
+  let currentPlaylist = songs; 
   let currentPlaylistKey = "songs";
-  let currentPlaylistType = 'local'; // 'local' or 'soundcloud'
+  let currentPlaylistType = 'local'; 
   let soundcloudWidget = null;
   let currentPhotoIndex = 0;
   let slideshowTimer = null;
@@ -54,9 +54,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Playlist management - declare these first
   const playlists = {
-    songs: songs,           // Kevin's Local
-    joanneCloud: [],       // Will be populated from SoundCloud
-    kevinCloud: []         // Will be populated from SoundCloud
+    songs: songs,           
+    joanneCloud: [],     
+    kevinCloud: []         
   };
 
   const playlistNames = {
